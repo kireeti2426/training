@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Insecure WebApp</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1>🔓 Insecure WebApp</h1>
+            <div class="nav-menu">
+                <a href="dashboard.html">Dashboard</a>
+                <a href="profile.html">Profile</a>
+                <a href="gallery.html">Gallery</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="dashboard-container">
+            <h1>Welcome, <span id="username"></span>!</h1>
+
+            <div class="dashboard-section">
+                <h2>Create a Post</h2>
+                <form id="postForm">
+                    <div class="form-group">
+                        <label for="postTitle">Title:</label>
+                        <input type="text" id="postTitle" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="postContent">Content:</label>
+                        <textarea id="postContent" rows="5" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="postImage">Image URL (optional):</label>
+                        <input type="text" id="postImage">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Create Post</button>
+                </form>
+                <div id="postMessage"></div>
+            </div>
+
+            <div class="dashboard-section">
+                <h2>Search Posts</h2>
+                <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="Search by title, content, or username...">
+                    <button onclick="searchPosts()" class="btn btn-secondary">Search</button>
+                </div>
+            </div>
+
+            <div class="dashboard-section">
+                <h2>All Posts</h2>
+                <div id="postsContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>⚠️ For Educational Purposes Only</p>
+    </footer>
+
+    <script>
+        const userId = localStorage.getItem('userId');
+        const username = localStorage.getItem('username');
+
+        if (!username) {
+            window.location.href = 'login.html';
+        }
+
+        document.getElementById('username').textContent = username;
+
+        // Handle post creation
+        document.getElementById('postForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const title = document.getElementById('postTitle').value;
+            const content = document.getElementById('postContent').value;
+            const image = document.getElementById('postImage').value;
+
+            try {
+                // ⚠️ INSECURE: Need to get userId - using from localStorage or need to fetch
+                // For now, let's fetch user from API
+                const response = await fetch('/create-post', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userId: userId || '',
+                        username: username,
+                        title: title,
+                        content: content,
+                        image: image
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('postMessage').textContent = 'Post created successfully!';
+                    document.getElementById('postForm').reset();
+                    loadPosts();
+                } else {
+                    document.getElementById('postMessage').textContent = 'Error: ' + data.error;
+                }
+            } catch (err) {
+                document.getElementById('postMessage').textContent = 'Error: ' + err.message;
+            }
+        });
+
+        async function loadPosts() {
+            try {
+                const response = await fetch('/posts');
+                const posts = await response.json();
+
+                let html = '';
+                posts.forEach(post => {
+                    html += `
+                        <div class="post-card">
+                            <h3>${post.title}</h3>
+                            <p><strong>By: ${post.username}</strong></p>
+                            <div class="post-content">
+                                ${post.content}
+                            </div>
+                            ${post.image ? `<img src="${post.image}" alt="Post image" style="max-width: 100%; max-height: 300px;">` : ''}
+                            <p><small>${new Date(post.createdAt).toLocaleString()}</small></p>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('postsContainer').innerHTML = html;
+            } catch (err) {
+                console.error('Error loading posts:', err);
+            }
+        }
+
+        async function searchPosts() {
+            const query = document.getElementById('searchInput').value;
+
+            if (!query.trim()) {
+                loadPosts();
+                return;
+            }
+
+            try {
+                const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
+                const results = await response.json();
+
+                let html = '';
+                results.forEach(post => {
+                    html += `
+                        <div class="post-card">
+                            <h3>${post.title}</h3>
+                            <p><strong>By: ${post.username}</strong></p>
+                            <div class="post-content">
+                                ${post.content}
+                            </div>
+                            ${post.image ? `<img src="${post.image}" alt="Post image" style="max-width: 100%; max-height: 300px;">` : ''}
+                            <p><small>${new Date(post.createdAt).toLocaleString()}</small></p>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('postsContainer').innerHTML = html || '<p>No posts found</p>';
+            } catch (err) {
+                document.getElementById('postsContainer').innerHTML = '<p>Error searching posts</p>';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('userId');
+            localStorage.removeItem('username');
+            window.location.href = '/';
+        }
+
+        // Load posts on page load
+        loadPosts();
+    </script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery - Insecure WebApp</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1>🔓 Insecure WebApp</h1>
+            <div class="nav-menu">
+                <a href="dashboard.html">Dashboard</a>
+                <a href="profile.html">Profile</a>
+                <a href="gallery.html">Gallery</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="gallery-container">
+            <h1>Image Gallery</h1>
+
+            <div class="gallery-section">
+                <h2>Upload Image</h2>
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="imageFile">Select Image:</label>
+                        <input type="file" id="imageFile" accept="image/*" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </form>
+                <div id="uploadMessage"></div>
+            </div>
+
+            <div class="gallery-section">
+                <h2>My Gallery</h2>
+                <div id="galleryContainer" class="gallery-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>⚠️ For Educational Purposes Only</p>
+    </footer>
+
+    <script>
+        const userId = localStorage.getItem('userId');
+        const username = localStorage.getItem('username');
+
+        if (!username) {
+            window.location.href = 'login.html';
+        }
+
+        // Handle image upload
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const imageFile = document.getElementById('imageFile').files[0];
+
+            if (!imageFile) {
+                document.getElementById('uploadMessage').textContent = 'Please select an image';
+                return;
+            }
+
+            // ⚠️ INSECURE: No file type validation, no size limit checking
+            const formData = new FormData();
+            formData.append('image', imageFile);
+            formData.append('userId', userId || '');
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('uploadMessage').textContent = 'Image uploaded successfully!';
+                    document.getElementById('uploadForm').reset();
+                    loadGallery();
+                } else {
+                    document.getElementById('uploadMessage').textContent = 'Error: ' + data.error;
+                }
+            } catch (err) {
+                document.getElementById('uploadMessage').textContent = 'Error: ' + err.message;
+            }
+        });
+
+        async function loadGallery() {
+            try {
+                const response = await fetch(`/gallery/${userId || 'unknown'}`);
+                const images = await response.json();
+
+                let html = '';
+                if (Array.isArray(images)) {
+                    images.forEach(image => {
+                        html += `
+                            <div class="gallery-item">
+                                <img src="${image.path}" alt="Gallery image">
+                                <p>${image.filename}</p>
+                                <small>${new Date(image.uploadedAt).toLocaleDateString()}</small>
+                            </div>
+                        `;
+                    });
+                }
+
+                document.getElementById('galleryContainer').innerHTML = html || '<p>No images uploaded yet</p>';
+            } catch (err) {
+                document.getElementById('galleryContainer').innerHTML = '<p>Error loading gallery</p>';
+                console.error('Error:', err);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('userId');
+            localStorage.removeItem('username');
+            window.location.href = '/';
+        }
+
+        // Load gallery on page load
+        loadGallery();
+    </script>
+</body>
+</html>

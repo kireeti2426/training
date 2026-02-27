@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - Insecure WebApp</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1>🔓 Insecure WebApp</h1>
+            <div class="nav-menu">
+                <a href="dashboard.html">Dashboard</a>
+                <a href="profile.html">Profile</a>
+                <a href="gallery.html">Gallery</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="profile-container">
+            <h1>User Profile</h1>
+
+            <div class="profile-section">
+                <h2>Profile Information</h2>
+                <div id="profileInfo"></div>
+            </div>
+
+            <div class="profile-section">
+                <h2>Edit Profile</h2>
+                <form id="editProfileForm">
+                    <div class="form-group">
+                        <label for="profileUsername">Username:</label>
+                        <input type="text" id="profileUsername" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="profileEmail">Email:</label>
+                        <input type="email" id="profileEmail" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="profileBio">Bio:</label>
+                        <textarea id="profileBio" rows="3"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Update Profile</button>
+                </form>
+                <div id="profileMessage"></div>
+            </div>
+
+            <div class="profile-section">
+                <h2>Change Password</h2>
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label for="oldPassword">Current Password:</label>
+                        <input type="password" id="oldPassword" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newPassword">New Password:</label>
+                        <input type="password" id="newPassword" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirmNewPassword">Confirm New Password:</label>
+                        <input type="password" id="confirmNewPassword" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Change Password</button>
+                </form>
+                <div id="passwordMessage"></div>
+            </div>
+
+            <div class="profile-section">
+                <h2>Your Posts</h2>
+                <div id="userPostsContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>⚠️ For Educational Purposes Only</p>
+    </footer>
+
+    <script>
+        const userId = localStorage.getItem('userId');
+        const username = localStorage.getItem('username');
+
+        if (!username) {
+            window.location.href = 'login.html';
+        }
+
+        async function loadProfile() {
+            try {
+                // ⚠️ INSECURE: If userId is not available, fetch all users (no validation)
+                // For now, we'll use localStorage userId if available
+                const response = await fetch(`/profile/${userId || '60d5ec49f1b2c72c8c8c8c8c'}`);
+                const user = await response.json();
+
+                if (user.error) {
+                    // User doesn't have ID, show default
+                    document.getElementById('profileInfo').innerHTML = `
+                        <p><strong>Username:</strong> ${username}</p>
+                        <p><strong>Email:</strong> Not loaded</p>
+                    `;
+                } else {
+                    document.getElementById('profileInfo').innerHTML = `
+                        <p><strong>Username:</strong> ${user.username}</p>
+                        <p><strong>Email:</strong> ${user.email}</p>
+                        <p><strong>Bio:</strong> ${user.bio || 'No bio'}</p>
+                        <p><strong>Joined:</strong> ${new Date(user.createdAt).toLocaleDateString()}</p>
+                    `;
+
+                    // Populate form
+                    document.getElementById('profileUsername').value = user.username;
+                    document.getElementById('profileEmail').value = user.email;
+                    document.getElementById('profileBio').value = user.bio || '';
+                }
+            } catch (err) {
+                console.error('Error loading profile:', err);
+            }
+        }
+
+        // Edit profile
+        document.getElementById('editProfileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('profileUsername').value;
+            const email = document.getElementById('profileEmail').value;
+            const bio = document.getElementById('profileBio').value;
+
+            try {
+                const response = await fetch('/profile/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userId: userId || '',
+                        username: username,
+                        email: email,
+                        bio: bio
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('profileMessage').textContent = 'Profile updated successfully!';
+                    loadProfile();
+                } else {
+                    document.getElementById('profileMessage').textContent = 'Error: ' + data.error;
+                }
+            } catch (err) {
+                document.getElementById('profileMessage').textContent = 'Error: ' + err.message;
+            }
+        });
+
+        // Change password
+        document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+
+            if (newPassword !== confirmNewPassword) {
+                document.getElementById('passwordMessage').textContent = 'New passwords do not match';
+                return;
+            }
+
+            try {
+                const response = await fetch('/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userId: userId || '',
+                        oldPassword: oldPassword,
+                        newPassword: newPassword
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('passwordMessage').textContent = 'Password changed successfully!';
+                    document.getElementById('changePasswordForm').reset();
+                } else {
+                    document.getElementById('passwordMessage').textContent = 'Error: ' + data.message;
+                }
+            } catch (err) {
+                document.getElementById('passwordMessage').textContent = 'Error: ' + err.message;
+            }
+        });
+
+        async function loadUserPosts() {
+            try {
+                const response = await fetch(`/user-posts/${userId || 'unknown'}`);
+                const posts = await response.json();
+
+                if (Array.isArray(posts)) {
+                    let html = '';
+                    posts.forEach(post => {
+                        html += `
+                            <div class="post-card">
+                                <h3>${post.title}</h3>
+                                <div class="post-content">${post.content}</div>
+                                ${post.image ? `<img src="${post.image}" alt="Post image" style="max-width: 100%; max-height: 300px;">` : ''}
+                                <p><small>${new Date(post.createdAt).toLocaleString()}</small></p>
+                            </div>
+                        `;
+                    });
+
+                    document.getElementById('userPostsContainer').innerHTML = html || '<p>No posts yet</p>';
+                } else {
+                    document.getElementById('userPostsContainer').innerHTML = '<p>Error loading posts</p>';
+                }
+            } catch (err) {
+                document.getElementById('userPostsContainer').innerHTML = '<p>Error loading posts</p>';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('userId');
+            localStorage.removeItem('username');
+            window.location.href = '/';
+        }
+
+        // Load on page load
+        loadProfile();
+        loadUserPosts();
+    </script>
+</body>
+</html>
